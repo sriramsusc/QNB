@@ -1,0 +1,42 @@
+Changes from teleportationnoisemodel.py to teleportationnoisemodel_updated.py:
+
+1. Base Class & Imports
+- **Base class changed:**  
+  Old: Inherited from `QuantumNoiseModel` (netsquid.components.models.qnoisemodels)  
+  New: Inherits from `QuantumErrorModel` (netsquid.components.models.qerrormodels)  
+- **Imports trimmed & updated:**  
+  Removed `math`, `netsquid` core imports, `warn_deprecated`, and qubit-specific API imports.  
+  Added `assign_qstate` and `QFormalism` for direct density-matrix assignment.
+
+2. Constructor & Validation
+- **Signature refined:**  
+  Old: `__init__(self, alpha=1, **kwargs)`  
+  New: `__init__(self, alpha: float = 1.0, **kwargs)`  
+- **Validation streamlined:**  
+  Old: Checked and raised `ValueError` if `alpha < 0` or `alpha > 1`, with duplicate property update.  
+  New: Single range check (`if not 0.0 <= alpha <= 1.0:`) with concise error message.
+
+3. Property Handling
+- **Property storage:**  
+  Old: Used `self._properties.update({'alpha': alpha})` twice.  
+  New: Uses `self.add_property("alpha", alpha)` once.
+- **Getter:**  
+  Old: Returned `self._properties['alpha']`.  
+  New: Returns `self.properties["alpha"]` directly.
+
+4. Noise vs. Error Method
+- **Method renamed:**  
+  Old: `noise_operation(self, qubits, delta_time=0, **kwargs)` and separate `apply_noise(qubit)`.  
+  New: Single `error_operation(self, qubits: list, delta_time: float = 0, **kwargs)` method.
+- **Logic consolidated:**  
+  Removed separate `apply_noise`.  
+  Combines empty- and trivial-`alpha` checks, then applies mixing of the density matrix inline.
+
+5. Density-Matrix Assignment
+- **Direct assignment vs. utility:**  
+  Old: `qubit.qstate.dm = alpha*dm + (1-alpha)*zero_dm`.  
+  New: Constructs `new_dm` and uses `assign_qstate(qubit, new_dm, QFormalism.DM)` for consistency with Netsquid API.
+
+6. Overall Simplification
+- Streamlined class by removing deprecated patterns, redundant updates, and manual DM manipulation.  
+- Embraced Netsquid’s modern error-model interface (`QuantumErrorModel`) for cleaner integration.

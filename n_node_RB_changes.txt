@@ -1,0 +1,56 @@
+1. Constructor & Initialization
+- Signature changed
+  Old: __init__(self, n_nodes, min_bounces, max_bounces, n_samples)
+  New: __init__(self, nodes: List[Node], min_bounces: int, max_bounces: int, n_samples: int, name: str | None = None)
+  Now takes a list of Node objects instead of just a count, plus an optional name.
+- Validation added
+  Raises ValueError if max_bounces < min_bounces immediately.
+- Fields renamed & restructured
+  _max_bounces_current_round → _current_bounces
+  _gate_history → _gate_history: List[IGate]
+  _end_fidelity → _fidelity_samples: List[float]
+  Aggregated fidelity storage renamed from _mean_fidelity_bounce and _array_fidelity_bounce to _mean_fidelity: Dict[int, float] and _all_samples: Dict[int, List[float]].
+
+2. Connectivity Check Simplified
+- Old: Complex series of check_assigned and manual port-existence checks in is_connected property.
+- New:
+  Verifies each node’s qmemory has positions and that bi-directional ports exist between adjacent nodes.
+  Checks for presence of a QSource on the first node via helper _get_qsource.
+
+3. Protocol Execution Flow
+- Old:
+  Uses manual event types, callbacks, and explicit scheduling.
+- New:
+  Adopts a generator-based run() method that:
+    1. Iterates over bounce lengths m
+    2. Repeats n_samples runs per m
+    3. Yields from helper coroutines (_prepare_initial_state, _random_bounce_walk)
+    4. Computes fidelities inline and resets memory
+  Signals each round’s completion via self.send_signal("ROUND_DONE", result=mean_fid).
+
+4. State Preparation & Bounce Logic
+- Old: _handle_trigger + _output_handler → store qubit to memory via callbacks.
+- New: _prepare_initial_state() directly triggers the QSource, awaits its port output, and puts the qubit into memory.
+- Random walk
+  Old: Explicit _send_qubit/_receive_qubit methods handling port messages and state switching.
+  New: _random_bounce_walk(qubit, m) builds a bounce-path list, then in each step:
+    1. Applies a random Clifford gate
+    2. Pops and transmits the qubit along the correct port
+    3. Awaits reception and re-stores in the next node’s memory.
+
+5. Fidelity Evaluation
+- Old: Inline in _operate_qubit, manual storage of results and pauli averaging with noise.
+- New: Extracted into _evaluate_fidelity(qubit) that:
+    1. Creates two reference qubits
+    2. Applies the entire gate history to both
+    3. Builds an Operator("ref", …) and returns exp_value(qubit, O_ref).
+
+6. Clifford Generation Refactored
+- Old: Calls _generate_cliffords() in constructor; returns a list of IGate instructions built from ops.
+- New: Imports cleaned up, and result is stored in self.cliffords: List[IGate].
+
+7. Removed / Simplified Components
+- Old file contained numerous helper methods and fields no longer needed.
+- New file discards all manual event scheduling, streamlines to just three private methods plus generator-based run().
+
+Overall, the updated version embraces coroutine-style Protocol.run(), replaces manual plumbing with sequential coroutines, refines data structures for clarity, and centralizes fidelity aggregation.
