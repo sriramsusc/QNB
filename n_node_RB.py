@@ -16,16 +16,7 @@ from netsquid.qubits.operators import Operator
 
 
 class MultiNodeRB(Protocol):
-    """
-    Multi‑node Randomised Benchmarking protocol with optional shot noise.
-
-    This class implements the random bounce walk used in the NetSquid simulations
-    accompanying the QNB work.  It has been updated for recent versions of
-    NetSquid, but retains the ability to add Gaussian shot noise to the
-    fidelity samples.  The shot noise models the statistical uncertainty
-    associated with a finite number of measurements (here defaulting to 4000).
-    """
-
+    
     def __init__(
         self,
         nodes: List[Node],
@@ -87,7 +78,6 @@ class MultiNodeRB(Protocol):
 
     @property
     def is_connected(self) -> bool:
-        """Check whether the chain of nodes is correctly connected."""
         if any(node.qmemory.num_positions == 0 for node in self.nodes):
             return False
         for i in range(self.n_nodes - 1):
@@ -100,20 +90,9 @@ class MultiNodeRB(Protocol):
         return True
 
     def get_fidelity(self) -> Tuple[Dict[int, float], Dict[int, List[float]]]:
-        """Return copies of the mean fidelity and per‐sample fidelities."""
         return dict(self._mean_fidelity), {k: v.copy() for k, v in self._all_samples.items()}
 
     def run(self):
-        """Execute the randomised benchmarking protocol.
-
-        For each number of bounces ``m`` in the range ``[min_bounces, max_bounces]``,
-        this method runs ``n_samples`` random sequences.  A single qubit is
-        prepared, bounced back and forth ``m`` times with random Clifford
-        operations applied before each hop, and its fidelity with respect to a
-        reference operator is recorded.  If ``add_shot_noise`` is ``True``,
-        Gaussian noise simulating a finite number of measurement shots is added
-        to each fidelity sample before aggregation.
-        """
         for m in range(self.min_bounces, self.max_bounces + 1):
             self._current_bounces = m
             self._fidelity_samples.clear()
@@ -143,14 +122,12 @@ class MultiNodeRB(Protocol):
         return self._mean_fidelity, self._all_samples
 
     def _get_qsource(self, node: Node) -> QSource | None:
-        """Return the QSource subcomponent of a node if it exists."""
         for comp in node.subcomponents.values():
             if isinstance(comp, QSource):
                 return comp
         return None
 
     def _prepare_initial_state(self):
-        """Prepare a fresh qubit in the source node."""
         qsource = self._get_qsource(self.src)
         qsource.trigger()
         yield self.await_port_output(qsource.ports["qout0"])
@@ -160,13 +137,9 @@ class MultiNodeRB(Protocol):
         return qubit
 
     def _random_bounce_walk(self, qubit, m: int):
-        """Perform a random bounce walk of length ``m`` on the qubit."""
         forward  = list(range(self.n_nodes))
         backward = list(range(self.n_nodes - 2, -1, -1))
         single = forward + backward
-        # Build the full path for ``m`` bounces.  Each bounce consists of a
-        # forward and backward traversal, except that successive bounces share
-        # the intermediate nodes.
         path = single + single[1:] * (m - 1)
         current_idx   = path[0]
         current_node  = self.nodes[current_idx]
@@ -186,7 +159,6 @@ class MultiNodeRB(Protocol):
             current_idx, current_node = next_idx, next_node
 
     def _evaluate_fidelity(self, qubit):
-        """Compute the fidelity of the qubit with respect to a reference state."""
         ref1, ref2 = create_qubits(2)
         operate(ref2, ops.X)
         for instr in self._gate_history:
@@ -197,7 +169,6 @@ class MultiNodeRB(Protocol):
         return exp_value(qubit, O_ref)
 
     def _generate_cliffords(self):
-        """Generate a list of single‑qubit Clifford instructions."""
         cliff_ops = [
             ops.I, ops.X, ops.Y, ops.Z, ops.H, ops.S,
             ops.X * ops.H,  ops.Y * ops.H,  ops.Z * ops.H,
