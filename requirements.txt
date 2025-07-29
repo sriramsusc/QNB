@@ -17,7 +17,7 @@ kiwisolver==1.4.8
 matplotlib==3.10.3
 matplotlib-inline==0.1.7
 nest-asyncio==1.6.0
-netsquid==1.1.8
+netsquid
 numpy==2.2.5
 packaging==25.0
 pandas==2.2.3
